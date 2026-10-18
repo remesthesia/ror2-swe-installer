@@ -14,6 +14,9 @@ import vdf
 BEPINEX_URL = "https://thunderstore.io/package/download/bbepis/BepInExPack/{version}/"
 BEPINEX_VERSION = "5.4.2122"
 
+HOOKGENPATCHER_URL = "https://thunderstore.io/package/download/RiskofThunder/HookGenPatcher/{version}/"
+HOOKGENPATCHER_VERSION = "1.2.3"
+
 DEPOT_DOWNLOADER_URL = "https://github.com/SteamRE/DepotDownloader/releases/download/DepotDownloader_{version}/DepotDownloader-{platform}-x64.zip"
 DEPOT_DOWNLOADER_VERSION = "3.4.0"
 
@@ -64,7 +67,7 @@ def install_legacy_ror2(depot_downloader_executable_path: Path) -> tuple[str, Pa
 
     if sys.platform == "linux":
         steam_root_path = Path.home().joinpath(".steam/steam").resolve()
-    if sys.platform == "windows":
+    elif sys.platform == "windows":
         import winreg
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software/Valve/Steam") as k:
             steam_root_path = Path(winreg.QueryValueEx(k, "SteamPath")[0])
@@ -82,6 +85,7 @@ def install_legacy_ror2(depot_downloader_executable_path: Path) -> tuple[str, Pa
             name = vdf.load(f)["AppState"]["installdir"]
         ror2_path = steam_path.joinpath(f"steamapps/common/{name}")
     else:
+        print("AAA")
         quit()
 
     for item in Path(ror2_path).iterdir():
@@ -118,11 +122,21 @@ def install_bepinex(steam_username: str, ror2_path: Path) -> Path:
 
         node["LaunchOptions"] = "WINEDLLOVERRIDES=\"winhttp=n,b\" %command%"
 
-    return Path(f"{temp_bepinex_path}/BepInExPack")
+    return Path(f"{ror2_path}/BepInEx")
+
+def install_hook_gen_patcher(bepinex_path: Path) -> None:
+    temp_hook_path = f"{tempfile.gettempdir()}/Hook-{HOOKGENPATCHER_VERSION}"
+    req = request.Request(HOOKGENPATCHER_URL.format(version=HOOKGENPATCHER_VERSION), headers={"User-Agent": "ror2-swe-installer/1.0"})
+    with urlopen(req) as response:
+        with ZipFile(BytesIO(response.read())) as archive:
+            archive.extractall(temp_hook_path)
+
+    shutil.copytree(f"{temp_hook_path}/BepInEx", bepinex_path, dirs_exist_ok=True)
+
 
 def main() -> None:
     steam_username, ror2_path = install_legacy_ror2(install_depot_downloader())
-    install_bepinex(steam_username, ror2_path)
+    install_hook_gen_patcher(install_bepinex(steam_username, ror2_path))
 
 if __name__ == '__main__':
     main()
